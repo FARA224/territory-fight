@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Territory Fight!</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <!-- Semi-transparent white ohajiki following cursor -->
+    <div id="cursor-follower" class="hidden-cursor"></div>
+    
+    <!-- Game Start Sequence Overlay -->
+    <div id="start-sequence-overlay" class="hidden">
+        <div id="start-sequence-text"></div>
+    </div>
+
+    <!-- Main Game Context -->
+    <div id="app">
+        <!-- Underlay Game Screen (Used for game & lobby blur bg) -->
+        <section id="game-view">
+            <!-- Top Right Menu Button -->
+            <button id="btn-ingame-menu" title="メニュー">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+            
+            <div id="skill-aim-overlay" class="hidden fade-in">スキル発動中...キャンセルの場合はここをタップ</div>
+
+            <div class="game-container">
+                <!-- Top: Scores -->
+                <div class="scores-header">
+                    <div class="player-info active-turn" id="info-red">
+                        <p class="score-text red-score"><span id="score-red">0</span></p>
+                    </div>
+
+                    <div class="player-info" id="info-blue">
+                        <p class="score-text blue-score"><span id="score-blue">0</span></p>
+                        <div id="cpu-thinking" class="hidden fade-in">CPU考え中...</div>
+                    </div>
+                </div>
+
+                <!-- Center: Play Board -->
+                <div class="board-area">
+                    <div id="play-board-container" class="turn-red">
+                        <div id="play-board"></div>
+                    </div>
+                </div>
+
+                <!-- Bottom: Menu Bar -->
+                <div class="bottom-menu-bar">
+                    <button id="btn-pass" class="btn bottom-btn">パス</button>
+                    <button id="btn-special" class="btn bottom-btn special-btn">
+                        覚醒術
+                        <div id="awakening-gauge"></div>
+                    </button>
+                    <button id="btn-skill" class="btn bottom-btn">スキル</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Lobby Overlay -->
+        <section id="lobby" class="overlay-screen active fade-in">
+            <!-- Global Lobby Header (Always visible) -->
+            <div class="lobby-header">
+                <div class="coin-section" id="global-coin-display">
+                    <span style="color: #ffd32a; text-shadow: 1px 1px 0 #000; font-size: 1.2rem;">🟡</span> <span id="coin-count" style="font-weight: 800; font-size: 1.1rem;">500</span>
+                </div>
+            </div>
+
+            <!-- Tabs Container -->
+            <div id="lobby-tabs-container" class="lobby-tabs-container">
+                <!-- HOME TAB -->
+                <div id="tab-home" class="lobby-tab active fade-in">
+                    <div class="lobby-top-bar">
+                        <div class="trophy-section" id="trophy-ui-trigger" style="cursor: pointer;">
+                            🏆 <span id="trophy-count">0</span>
+                        </div>
+                        <p class="current-title-badge" id="lobby-current-title">おはじき初心者</p>
+                    </div>
+                    <div class="lobby-content">
+                        <h1 class="logo">Territory Fight!</h1>
+                        <p class="subtitle">おはじきで陣地どり!</p>
+
+                        <div class="spacer"></div>
+                        <button id="btn-start" class="btn primary-btn pulse-glow">始める</button>
+                    </div>
+                </div>
+
+                <!-- EQUIP TAB -->
+                <div id="tab-equip" class="lobby-tab hidden fade-in">
+                    <div class="lobby-content">
+                        <h2 class="tab-title">装備</h2>
+                        <div class="equipped-skills-section">
+                            <p>装備中のスキル <span class="skill-edit-hint">(タップで変更)</span></p>
+                            <div class="equipped-cards-container" id="equipped-cards-container">
+                                <!-- Cards will be injected here -->
+                            </div>
+                        </div>
+                        <div class="equipped-awakening-section" style="margin-top: 20px;">
+                            <p>装備中の覚醒術 <span class="skill-edit-hint">(タップで変更)</span></p>
+                            <div class="equipped-awakening-container" id="equipped-awakening-container">
+                                <!-- Awakening card will be injected here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GACHA TAB -->
+                <div id="tab-gacha" class="lobby-tab hidden fade-in">
+                    <div class="lobby-content" style="padding-top: 60px;">
+                        <button id="btn-show-odds" class="btn secondary-btn" style="position: absolute; top: 100px; right: 20px; font-size: 0.8rem; padding: 8px 15px; z-index: 10;">排出率・リストを見る</button>
+                        <h2 class="tab-title">ガチャ</h2>
+                        <div class="gacha-slider-container">
+                            <div class="gacha-slider" id="gacha-slider">
+                                <!-- SKILL GACHA -->
+                                <div class="gacha-slide">
+                                    <div class="gacha-machine">
+                                        <h3 class="gacha-title">SKILL</h3>
+                                        <div class="gacha-display"><span>?</span></div>
+                                        <button id="btn-roll-gacha" class="gacha-btn">1回引く (無料)</button>
+                                    </div>
+                                </div>
+                                <!-- AWAKENING GACHA -->
+                                <div class="gacha-slide">
+                                    <div class="gacha-machine awakening-machine">
+                                        <h3 class="gacha-title">AWAKENING</h3>
+                                        <div class="gacha-display"><span>!</span></div>
+                                        <button id="btn-roll-awakening" class="gacha-btn">1回引く (無料)</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="gacha-dots">
+                                <div class="gacha-dot active" data-index="0"></div>
+                                <div class="gacha-dot" data-index="1"></div>
+                            </div>
+                        </div>
+                        <div class="gacha-result-overlay hidden" id="gacha-result-overlay">
+                            <div class="gacha-result-content" id="gacha-result-content">
+                                <!-- Card injected here -->
+                            </div>
+                            <button id="btn-close-gacha" class="btn secondary-btn" style="position: absolute; bottom: 15%;">閉じる</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gacha Odds Modal -->
+                <section id="gacha-odds-overlay" class="overlay-screen hidden fade-in">
+                    <div class="odds-modal">
+                        <h2>排出率・排出リスト</h2>
+                        <div class="odds-info">
+                            <div class="odds-row"><span class="rarity prare">PR (Perfect Rare)</span> <span>5%</span></div>
+                            <div class="odds-row"><span class="rarity urare">UR (Triple Rare)</span> <span>15%</span></div>
+                            <div class="odds-row"><span class="rarity srare">SR (Double Rare)</span> <span>30%</span></div>
+                            <div class="odds-row"><span class="rarity rare">Rare (Green)</span> <span>50%</span></div>
+                        </div>
+                        <div class="odds-list-container">
+                            <div class="odds-tabs">
+                                <button class="odds-tab-btn active" data-type="skill">スキル</button>
+                                <button class="odds-tab-btn" data-type="awakening">覚醒術</button>
+                            </div>
+                            <div id="odds-items-list" class="odds-items-list">
+                                <!-- List items injected here -->
+                            </div>
+                        </div>
+                        <button id="btn-close-odds" class="btn primary-btn" style="margin-top: 20px;">閉じる</button>
+                    </div>
+                </section>
+
+                <!-- SKIN TAB -->
+                <div id="tab-skin" class="lobby-tab hidden fade-in">
+                    <div class="lobby-content">
+                        <h2 class="tab-title">スキン & 色設定</h2>
+                        <div class="color-selection">
+                            <p>自分の色を選ぶ</p>
+                            <div class="color-swatches" id="color-swatches">
+                                <div class="swatch selected" data-color="#ff4757" style="background-color: #ff4757;"></div>
+                                <div class="swatch" data-color="#1e90ff" style="background-color: #1e90ff;"></div>
+                                <div class="swatch" data-color="#ffd32a" style="background-color: #ffd32a;"></div>
+                                <div class="swatch" data-color="#ffa502" style="background-color: #ffa502;"></div>
+                                <div class="swatch" data-color="#9c88ff" style="background-color: #9c88ff;"></div>
+                                <div class="swatch" data-color="#2ed573" style="background-color: #2ed573;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SETTINGS TAB -->
+                <div id="tab-settings" class="lobby-tab hidden fade-in">
+                    <div class="lobby-content">
+                        <h2 class="tab-title">設定</h2>
+                        <div class="settings-container">
+                            <div class="setting-row">
+                                <span>音量</span>
+                                <input type="range" id="lobby-vol-slider" min="0" max="1" step="0.05" value="0.5">
+                            </div>
+                            <div class="setting-row">
+                                <span>ダークモード</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="lobby-theme-switch">
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+                            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 10px;">
+                                <span>獲得した称号</span>
+                                <select id="title-select" class="title-select-dropdown">
+                                    <option value="おはじき初心者">おはじき初心者</option>
+                                </select>
+                            </div>
+                            <div class="setting-row">
+                                <button id="btn-reset-data" class="btn secondary-btn" style="width: 100%; margin-top: 20px;">セーブデータ初期化</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lobby Bottom Menu Bar -->
+            <div class="lobby-bottom-bar">
+                <button class="lobby-nav-btn active" data-target="tab-home">
+                    <span>ホーム</span>
+                </button>
+                <button class="lobby-nav-btn" data-target="tab-equip">
+                    <span>装備</span>
+                </button>
+                <button class="lobby-nav-btn" data-target="tab-gacha">
+                    <span>ガチャ</span>
+                </button>
+                <button class="lobby-nav-btn" data-target="tab-skin">
+                    <span>スキン</span>
+                </button>
+                <button class="lobby-nav-btn" data-target="tab-settings">
+                    <span>設定</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Result Overlay -->
+        <section id="result" class="overlay-screen hidden fade-in">
+            <div class="result-content">
+                <div class="scores" id="res-score-container">
+                    <div class="res-score-row hidden" id="res-red-row">
+                        <span class="res-label">あなた:</span>
+                        <span class="res-value" id="res-red-score">0</span>
+                    </div>
+                    <div class="res-score-row hidden" id="res-blue-row">
+                        <span class="res-label">CPU:</span>
+                        <span class="res-value" id="res-blue-score">0</span>
+                    </div>
+                </div>
+                <h2 class="result-title hidden" id="res-title">勝利!!</h2>
+                <div class="match-rewards-display hidden" id="match-rewards-display">
+                    <p>報酬獲得！</p>
+                    <div class="reward-items">
+                        <div class="reward-item">🟡 <span id="reward-coins">0</span></div>
+                        <div class="reward-item">🏆 <span id="reward-trophies">0</span></div>
+                    </div>
+                </div>
+                <div class="result-buttons hidden" id="res-buttons">
+                    <button id="btn-to-lobby" class="btn secondary-btn">ロビーに戻る</button>
+                    <button id="btn-restart" class="btn primary-btn">リスタート</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- In-Game Menu Overlay -->
+        <section id="ingame-menu-overlay" class="overlay-screen hidden fade-in">
+            <div class="menu-modal">
+                <h2>ゲームメニュー</h2>
+                <button id="btn-resume" class="btn primary-btn">ゲームを続ける</button>
+                <button id="btn-settings" class="btn secondary-btn">設定</button>
+                <button id="btn-ig-restart" class="btn secondary-btn">リスタート</button>
+                <button id="btn-ig-lobby" class="btn secondary-btn">ロビーに戻る</button>
+            </div>
+        </section>
+
+        <!-- Settings Modal Overlay -->
+        <section id="settings-overlay" class="overlay-screen hidden fade-in">
+            <div class="menu-modal settings-modal">
+                <h2>設定</h2>
+
+                <div class="setting-row">
+                    <span>音量</span>
+                    <input type="range" id="vol-slider" min="0" max="1" step="0.05" value="0.5">
+                </div>
+
+                <div class="setting-row">
+                    <span>ダークモード</span>
+                    <label class="switch">
+                        <input type="checkbox" id="theme-switch">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+
+                <button id="btn-settings-close" class="btn primary-btn">閉じる</button>
+            </div>
+        </section>
+
+        <!-- Skill Inventory Selection Overlay (from Home) -->
+        <section id="inventory-overlay" class="overlay-screen hidden fade-in">
+            <div class="inventory-modal">
+                <h2>装備するスキルを選択</h2>
+                <div class="inventory-cards" id="inventory-cards-container">
+                    <!-- Inventory cards injected here -->
+                </div>
+                <button id="btn-close-inventory" class="btn primary-btn" style="margin-top:20px;">決定</button>
+            </div>
+        </section>
+
+        <!-- In-Game Skill Selection Overlay -->
+        <section id="ingame-skill-overlay" class="overlay-screen hidden fade-in">
+            <div class="ingame-skill-modal">
+                <h2>使用するスキルを選択</h2>
+                <div class="ingame-cards-container" id="ingame-cards-container">
+                    <!-- 3 Equipped Cards injected here -->
+                </div>
+                <button id="btn-close-skill" class="btn secondary-btn" style="margin-top:20px;">キャンセル</button>
+            </div>
+        </section>
+
+        <!-- Trophy Reward Modal -->
+        <section id="trophy-reward-overlay" class="overlay-screen hidden fade-in">
+            <div class="menu-modal">
+                <h2>トロフィー報酬</h2>
+                <div class="trophy-progress-container" style="padding: 0 20px;">
+                    <div class="trophy-progress-bar-bg">
+                        <div id="trophy-reward-bar"></div>
+                    </div>
+                    <p id="trophy-reward-text">0 / 100</p>
+                </div>
+                
+                <div class="trophy-reward-list" id="trophy-reward-list">
+                    <!-- Reward items will be injected here -->
+                </div>
+                <div id="reward-claim-section" class="hidden">
+                    <p style="color: #2ed573; font-weight: 800;">報酬が受け取れます！</p>
+                    <button id="btn-claim-reward" class="btn primary-btn">報酬を受け取る</button>
+                </div>
+                <button id="btn-close-trophy-reward" class="btn secondary-btn">閉じる</button>
+            </div>
+        </section>
+
+        <!-- Restart Confirm Overlay -->
+        <section id="restart-confirm-overlay" class="overlay-screen hidden fade-in">
+            <div class="menu-modal">
+                <h2>本当にやり直しますか？</h2>
+                <div style="display: flex; gap: 15px; justify-content: center;">
+                    <button id="btn-confirm-restart" class="btn primary-btn">はい</button>
+                    <button id="btn-cancel-restart" class="btn secondary-btn">いいえ</button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Error Toasts -->
+    <div id="toast" class="toast hidden fade-in">そこには置けません</div>
+
+    <!-- Combo Text Overlay -->
+    <div id="combo-text" class="hidden"></div>
+
+    <!-- Audio Effects -->
+    <audio id="se-set" src="Assets/Set.mp3" preload="auto"></audio>
+    <audio id="se-result" src="Assets/Result.mp3" preload="auto"></audio>
+    <audio id="se-result-last" src="Assets/Result_Last.mp3" preload="auto"></audio>
+    <audio id="se-result-loss" src="Assets/Result_Last2.mp3" preload="auto"></audio>
+    <audio id="se-start" src="Assets/Start.mp3" preload="auto"></audio>
+    <audio id="se-button" src="Assets/Button.mp3" preload="auto"></audio>
+    <audio id="se-cancel" src="Assets/cancel.mp3" preload="auto"></audio>
+
+    <script src="game.js"></script>
+</body>
+
+</html>
