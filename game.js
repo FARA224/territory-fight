@@ -347,6 +347,7 @@ let elStartText = document.getElementById('start-sequence-text');
 let isAimingSkill = false;
 let activeSkillPattern = null;
 let activeSkillId = null;
+let lastTappedSkillCell = null;
 let skillCooldowns = {}; // { skillId: remainingSeconds }
 
 // Update cooldowns every second
@@ -533,7 +534,7 @@ function handleCellOut(x, y) {
 function clearAimHighlight() {
     for (const row of cells) {
         for (const cell of row) {
-            cell.classList.remove('skill-aim-target', 'overwrite');
+            cell.classList.remove('skill-aim-target', 'overwrite', 'skill-candidate');
         }
     }
 }
@@ -764,34 +765,43 @@ async function handleCellClick(x, y) {
     if (isGameOver) return;
 
     if (isAimingSkill && activeSkillPattern) {
-        // Execute Skill
-        activeSkillPattern.forEach(([dx, dy]) => {
-            const nx = x + dx;
-            const ny = y + dy;
-            if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
-                // Ignore blocks rule: overwrite forcefully
-                if (board[ny][nx] !== RED && board[ny][nx] !== RED_BLOCK) {
-                    placePiece(nx, ny, RED);
+        // Two-step placement for mobile/touch
+        if (lastTappedSkillCell && lastTappedSkillCell.x === x && lastTappedSkillCell.y === y) {
+            // Execute Skill on second tap
+            activeSkillPattern.forEach(([dx, dy]) => {
+                const nx = x + dx;
+                const ny = y + dy;
+                if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
+                    // Ignore blocks rule: overwrite forcefully
+                    if (board[ny][nx] !== RED && board[ny][nx] !== RED_BLOCK) {
+                        placePiece(nx, ny, RED);
+                    }
                 }
+            });
+            showToast("スキル発動!");
+            cancelSkillAim();
+            
+            // Apply cooldown based on rarity
+            let sd = SKILL_DATA.find(s => s.id === activeSkillId);
+            if (sd) {
+                let cd = 10; // Rare
+                if (sd.rarity === 'srare') cd = 20;
+                else if (sd.rarity === 'urare') cd = 30;
+                else if (sd.rarity === 'prare') cd = 60;
+                skillCooldowns[sd.id] = cd;
             }
-        });
-        showToast("スキル発動!");
-        cancelSkillAim();
-        
-        // Apply cooldown based on rarity
-        let sd = SKILL_DATA.find(s => s.id === activeSkillId);
-        if (sd) {
-            let cd = 10; // Rare
-            if (sd.rarity === 'srare') cd = 20;
-            else if (sd.rarity === 'urare') cd = 30;
-            else if (sd.rarity === 'prare') cd = 60;
-            skillCooldowns[sd.id] = cd;
+            
+            // Pass turn
+            currentPlayer = BLUE;
+            setTurnUI();
+            handleTurnTransition();
+        } else {
+            // First tap: preview and set as candidate
+            lastTappedSkillCell = { x, y };
+            handleCellHover(x, y); // trigger highlight
+            cells[y][x].classList.add('skill-candidate');
+            showToast("もう一度タップで発動！");
         }
-        
-        // Pass turn
-        currentPlayer = BLUE;
-        setTurnUI();
-        handleTurnTransition();
         return;
     }
 
@@ -1316,6 +1326,7 @@ function cancelSkillAim() {
     isAimingSkill = false;
     activeSkillPattern = null;
     activeSkillId = null;
+    lastTappedSkillCell = null;
     skillAimOverlay.classList.add('hidden');
     clearAimHighlight();
 }
