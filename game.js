@@ -85,58 +85,57 @@ let consecutiveBlocksBlue = 0;
 let awakeningCooldownMax = 0; // ms
 let awakeningCooldownCurrent = 0; // ms
 let awakeningInterval = null;
-let awakeningTickMultiplier = 1;
 
 // ----- Skills Data -----
 // Rarity: rare(緑), srare(水), urare(紫), prare(黄)
 const SKILL_DATA = [
     // Rare (10) - 2~3 pieces, simple basic shapes
-    { id: 'r1', name: '縦一直線', rarity: 'rare', pattern: [[0,-1],[0,0],[0,1]], cooldown: 15 },
-    { id: 'r2', name: '横一直線', rarity: 'rare', pattern: [[-1,0],[0,0],[1,0]], cooldown: 15 },
-    { id: 'r3', name: '右上がり', rarity: 'rare', pattern: [[-1,1],[0,0],[1,-1]], cooldown: 15 },
-    { id: 'r4', name: '右下がり', rarity: 'rare', pattern: [[-1,-1],[0,0],[1,1]], cooldown: 15 },
-    { id: 'r5', name: '縦並び (2)', rarity: 'rare', pattern: [[0,0],[0,1]], cooldown: 15 },
-    { id: 'r6', name: '横並び (2)', rarity: 'rare', pattern: [[0,0],[1,0]], cooldown: 15 },
-    { id: 'r7', name: 'ナナメ (2)', rarity: 'rare', pattern: [[0,0],[1,-1]], cooldown: 15 },
-    { id: 'r8', name: '逆ナナメ (2)', rarity: 'rare', pattern: [[0,0],[1,1]], cooldown: 15 },
-    { id: 'r9', name: 'L字 (小)', rarity: 'rare', pattern: [[0,-1],[0,0],[1,0]], cooldown: 15 },
-    { id: 'r10', name: '逆L字 (小)', rarity: 'rare', pattern: [[0,-1],[0,0],[-1,0]], cooldown: 15 },
+    { id: 'r1', name: '縦一直線', rarity: 'rare', pattern: [[0,-1],[0,0],[0,1]] },
+    { id: 'r2', name: '横一直線', rarity: 'rare', pattern: [[-1,0],[0,0],[1,0]] },
+    { id: 'r3', name: '右上がり', rarity: 'rare', pattern: [[-1,1],[0,0],[1,-1]] },
+    { id: 'r4', name: '右下がり', rarity: 'rare', pattern: [[-1,-1],[0,0],[1,1]] },
+    { id: 'r5', name: '縦並び (2)', rarity: 'rare', pattern: [[0,0],[0,1]] },
+    { id: 'r6', name: '横並び (2)', rarity: 'rare', pattern: [[0,0],[1,0]] },
+    { id: 'r7', name: 'ナナメ (2)', rarity: 'rare', pattern: [[0,0],[1,-1]] },
+    { id: 'r8', name: '逆ナナメ (2)', rarity: 'rare', pattern: [[0,0],[1,1]] },
+    { id: 'r9', name: 'L字 (小)', rarity: 'rare', pattern: [[0,-1],[0,0],[1,0]] },
+    { id: 'r10', name: '逆L字 (小)', rarity: 'rare', pattern: [[0,-1],[0,0],[-1,0]] },
 
     // SRare (Double Rare)(10) - 3~4 pieces, slightly complex
-    { id: 'sr1', name: '縦4連', rarity: 'srare', pattern: [[0,-2],[0,-1],[0,0],[0,1]], cooldown: 30 },
-    { id: 'sr2', name: '横4連', rarity: 'srare', pattern: [[-1,0],[0,0],[1,0],[2,0]], cooldown: 30 },
-    { id: 'sr3', name: '斜め4連', rarity: 'srare', pattern: [[-1,1],[0,0],[1,-1],[2,-2]], cooldown: 30 },
-    { id: 'sr4', name: '逆斜め4連', rarity: 'srare', pattern: [[-1,-1],[0,0],[1,1],[2,2]], cooldown: 30 },
-    { id: 'sr5', name: '大きめL字', rarity: 'srare', pattern: [[0,-2],[0,-1],[0,0],[1,0],[2,0]], cooldown: 30 },
-    { id: 'sr6', name: 'T字', rarity: 'srare', pattern: [[-1,0],[0,0],[1,0],[0,1]], cooldown: 30 },
-    { id: 'sr7', name: '逆T字', rarity: 'srare', pattern: [[-1,0],[0,0],[1,0],[0,-1]], cooldown: 30 },
-    { id: 'sr8', name: '十字 (小)', rarity: 'srare', pattern: [[0,-1],[-1,0],[0,0],[1,0],[0,1]], cooldown: 30 },
-    { id: 'sr9', name: '四角', rarity: 'srare', pattern: [[0,0],[1,0],[0,1],[1,1]], cooldown: 30 },
-    { id: 'sr10', name: '斜め四角', rarity: 'srare', pattern: [[0,-1],[-1,0],[1,0],[0,1]], cooldown: 30 },
+    { id: 'sr1', name: '縦4連', rarity: 'srare', pattern: [[0,-2],[0,-1],[0,0],[0,1]] },
+    { id: 'sr2', name: '横4連', rarity: 'srare', pattern: [[-1,0],[0,0],[1,0],[2,0]] },
+    { id: 'sr3', name: '斜め4連', rarity: 'srare', pattern: [[-1,1],[0,0],[1,-1],[2,-2]] },
+    { id: 'sr4', name: '逆斜め4連', rarity: 'srare', pattern: [[-1,-1],[0,0],[1,1],[2,2]] },
+    { id: 'sr5', name: '大きめL字', rarity: 'srare', pattern: [[0,-2],[0,-1],[0,0],[1,0],[2,0]] },
+    { id: 'sr6', name: 'T字', rarity: 'srare', pattern: [[-1,0],[0,0],[1,0],[0,1]] },
+    { id: 'sr7', name: '逆T字', rarity: 'srare', pattern: [[-1,0],[0,0],[1,0],[0,-1]] },
+    { id: 'sr8', name: '十字 (小)', rarity: 'srare', pattern: [[0,-1],[-1,0],[0,0],[1,0],[0,1]] },
+    { id: 'sr9', name: '四角', rarity: 'srare', pattern: [[0,0],[1,0],[0,1],[1,1]] },
+    { id: 'sr10', name: '斜め四角', rarity: 'srare', pattern: [[0,-1],[-1,0],[1,0],[0,1]] },
 
     // URare (Triple Rare)(10) - 4~5 pieces, powerful
-    { id: 'ur1', name: '縦5連', rarity: 'urare', pattern: [[0,-2],[0,-1],[0,0],[0,1],[0,2]], cooldown: 45 },
-    { id: 'ur2', name: '横5連', rarity: 'urare', pattern: [[-2,0],[-1,0],[0,0],[1,0],[2,0]], cooldown: 45 },
-    { id: 'ur3', name: 'X字型', rarity: 'urare', pattern: [[-1,-1],[1,-1],[0,0],[-1,1],[1,1]], cooldown: 45 },
-    { id: 'ur4', name: 'V字', rarity: 'urare', pattern: [[-1,-1],[0,0],[1,-1]], cooldown: 45 },
-    { id: 'ur5', name: '逆V字', rarity: 'urare', pattern: [[-1,1],[0,0],[1,1]], cooldown: 45 },
-    { id: 'ur6', name: '大十字', rarity: 'urare', pattern: [[0,-2],[0,-1],[-2,0],[-1,0],[0,0],[1,0],[2,0],[0,1],[0,2]], cooldown: 45 },
-    { id: 'ur7', name: 'U字', rarity: 'urare', pattern: [[-1,-1],[-1,0],[0,1],[1,1],[2,0],[2,-1]], cooldown: 45 },
-    { id: 'ur8', name: '星型', rarity: 'urare', pattern: [[0,-1],[-1,0],[1,0],[0,1]], cooldown: 45 },
-    { id: 'ur9', name: '斜めX', rarity: 'urare', pattern: [[-2,-1],[0,-1],[2,-1],[-1,0],[1,0]], cooldown: 45 },
-    { id: 'ur10', name: 'ジグザグ', rarity: 'urare', pattern: [[-1,-1],[-1,0],[0,0],[0,1],[1,1]], cooldown: 45 },
+    { id: 'ur1', name: '縦5連', rarity: 'urare', pattern: [[0,-2],[0,-1],[0,0],[0,1],[0,2]] },
+    { id: 'ur2', name: '横5連', rarity: 'urare', pattern: [[-2,0],[-1,0],[0,0],[1,0],[2,0]] },
+    { id: 'ur3', name: 'X字型', rarity: 'urare', pattern: [[-1,-1],[1,-1],[0,0],[-1,1],[1,1]] },
+    { id: 'ur4', name: 'V字', rarity: 'urare', pattern: [[-1,-1],[0,0],[1,-1]] },
+    { id: 'ur5', name: '逆V字', rarity: 'urare', pattern: [[-1,1],[0,0],[1,1]] },
+    { id: 'ur6', name: '大十字', rarity: 'urare', pattern: [[0,-2],[0,-1],[-2,0],[-1,0],[0,0],[1,0],[2,0],[0,1],[0,2]] },
+    { id: 'ur7', name: 'U字', rarity: 'urare', pattern: [[-1,-1],[-1,0],[0,1],[1,1],[2,0],[2,-1]] },
+    { id: 'ur8', name: '星型', rarity: 'urare', pattern: [[0,-1],[-1,0],[1,0],[0,1]] },
+    { id: 'ur9', name: '斜めX', rarity: 'urare', pattern: [[-2,-1],[0,-1],[2,-1],[-1,0],[1,0]] },
+    { id: 'ur10', name: 'ジグザグ', rarity: 'urare', pattern: [[-1,-1],[-1,0],[0,0],[0,1],[1,1]] },
 
     // PRare (Perfect Rare)(10) - 5+ pieces, game altering
-    { id: 'pr1', name: '全方位カッター', rarity: 'prare', pattern: [[0,-2],[0,2],[-2,0],[2,0],[0,0]], cooldown: 60 },
-    { id: 'pr2', name: '爆風', rarity: 'prare', pattern: [[-1,-1],[0,-1],[1,-1],[-1,0],[0,0],[1,0],[-1,1],[0,1],[1,1]], cooldown: 60 },
-    { id: 'pr3', name: '縦貫通', rarity: 'prare', pattern: [[0,-4],[0,-3],[0,-2],[0,-1],[0,0],[0,1],[0,2],[0,3],[0,4]], cooldown: 60 },
-    { id: 'pr4', name: '横貫通', rarity: 'prare', pattern: [[-4,0],[-3,0],[-2,0],[-1,0],[0,0],[1,0],[2,0],[3,0],[4,0]], cooldown: 60 },
-    { id: 'pr5', name: 'ナナメ断絶', rarity: 'prare', pattern: [[-4,-4],[-3,-3],[-2,-2],[-1,-1],[0,0],[1,1],[2,2],[3,3],[4,4]], cooldown: 60 },
-    { id: 'pr6', name: '逆ナナメ断絶', rarity: 'prare', pattern: [[-4,4],[-3,3],[-2,2],[-1,1],[0,0],[1,-1],[2,-2],[3,-3],[4,-4]], cooldown: 60 },
-    { id: 'pr7', name: 'ダブルL', rarity: 'prare', pattern: [[-1,-1],[-1,0],[0,0],[1,0],[1,1]], cooldown: 60 },
-    { id: 'pr8', name: '市松模様', rarity: 'prare', pattern: [[-1,-1],[1,-1],[-2,0],[0,0],[2,0],[-1,1],[1,1]], cooldown: 60 },
-    { id: 'pr9', name: 'リング', rarity: 'prare', pattern: [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]], cooldown: 60 },
-    { id: 'pr10', name: 'マスター', rarity: 'prare', pattern: [[0,-3],[0,-2],[0,-1],[0,0],[0,1],[0,2],[0,3],[-3,0],[-2,0],[-1,0],[1,0],[2,0],[3,0]], cooldown: 60 }
+    { id: 'pr1', name: '全方位カッター', rarity: 'prare', pattern: [[0,-2],[0,2],[-2,0],[2,0],[0,0]] },
+    { id: 'pr2', name: '爆風', rarity: 'prare', pattern: [[-1,-1],[0,-1],[1,-1],[-1,0],[0,0],[1,0],[-1,1],[0,1],[1,1]] },
+    { id: 'pr3', name: '縦貫通', rarity: 'prare', pattern: [[0,-4],[0,-3],[0,-2],[0,-1],[0,0],[0,1],[0,2],[0,3],[0,4]] },
+    { id: 'pr4', name: '横貫通', rarity: 'prare', pattern: [[-4,0],[-3,0],[-2,0],[-1,0],[0,0],[1,0],[2,0],[3,0],[4,0]] },
+    { id: 'pr5', name: 'ナナメ断絶', rarity: 'prare', pattern: [[-4,-4],[-3,-3],[-2,-2],[-1,-1],[0,0],[1,1],[2,2],[3,3],[4,4]] },
+    { id: 'pr6', name: '逆ナナメ断絶', rarity: 'prare', pattern: [[-4,4],[-3,3],[-2,2],[-1,1],[0,0],[1,-1],[2,-2],[3,-3],[4,-4]] },
+    { id: 'pr7', name: 'ダブルL', rarity: 'prare', pattern: [[-1,-1],[-1,0],[0,0],[1,0],[1,1]] },
+    { id: 'pr8', name: '市松模様', rarity: 'prare', pattern: [[-1,-1],[1,-1],[-2,0],[0,0],[2,0],[-1,1],[1,1]] },
+    { id: 'pr9', name: 'リング', rarity: 'prare', pattern: [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]] },
+    { id: 'pr10', name: 'マスター', rarity: 'prare', pattern: [[0,-3],[0,-2],[0,-1],[0,0],[0,1],[0,2],[0,3],[-3,0],[-2,0],[-1,0],[1,0],[2,0],[3,0]] }
 ];
 
 const AWAKENING_DATA = [
@@ -159,7 +158,7 @@ const AWAKENING_DATA = [
     { id: 'a16', name: 'アイアン・ガード', rarity: 'srare', desc: 'このターンの配置は次のターン上書きされない' },
     { id: 'a17', name: 'チェイン・リアクション', rarity: 'srare', desc: '置いた場所から直線上に2つおはじきを追加' },
     { id: 'a18', name: 'ターゲット・ロック', rarity: 'srare', desc: '一番近い敵おはじきを3つ消去する' },
-    { id: 'a19', name: 'ボルテッジ・チャージ', rarity: 'srare', desc: '15秒間、覚醒ゲージの回復速度が2倍になる' },
+    { id: 'a19', name: 'パワー・サージ', rarity: 'srare', desc: 'このターンに置くおはじきがブロックになりやすくなる' },
     { id: 'a20', name: 'エナジー・ドレイン', rarity: 'srare', desc: '敵のスコアを少し奪う' },
     { id: 'a21', name: 'ダブル・ムーブ', rarity: 'srare', desc: 'このターン、さらに2枚おはじきを置ける' },
     { id: 'a22', name: 'シールド・ジェネレータ', rarity: 'srare', desc: '周囲の自分のおはじきを保護する' },
@@ -172,9 +171,9 @@ const AWAKENING_DATA = [
     { id: 'a26', name: 'グラビティ・ホール', rarity: 'urare', desc: '中心に向かって周囲の敵おはじきを引き寄せ消去' },
     { id: 'a27', name: 'ハイパー・ステップ', rarity: 'urare', desc: 'このターン、さらに3枚おはじきを置ける' },
     { id: 'a28', name: 'ダイヤモンド・シールド', rarity: 'urare', desc: 'このターンの配置は3ターンの間上書きされない' },
-    { id: 'a29', name: 'スコア・ブースト', rarity: 'urare', desc: 'この試合で得られるコインが大幅に増える' },
+    { id: 'a29', name: 'スコア・マルチプライヤー', rarity: 'urare', desc: 'このターンに作るブロックのスコアが2倍になる' },
     { id: 'a30', name: 'ヴォイド・エクスプロージョン', rarity: 'urare', desc: '盤面の敵おはじきを10%消去する' },
-    { id: 'a31', name: 'リユース・エナジー', rarity: 'urare', desc: '全てのスキルのクールタイムをリセットする' },
+    { id: 'a31', name: 'クアッド・コア', rarity: 'urare', desc: '一度に4枚のおはじきを正方形に並べて置く' },
 
     // PRare (10)
     { id: 'a6', name: '神速の一手', rarity: 'prare', desc: 'このターン、さらに4枚おはじきを置ける' },
@@ -183,7 +182,7 @@ const AWAKENING_DATA = [
     { id: 'a34', name: 'タイム・ストップ', rarity: 'prare', desc: '2ターンの間、相手は行動できない' },
     { id: 'a35', name: 'ギャラクシー・バースト', rarity: 'prare', desc: '盤面全域に大爆発を起こし敵を壊滅させる' },
     { id: 'a36', name: 'パーフェクト・ウォール', rarity: 'prare', desc: '自分のおはじきが絶対に上書きされなくなる' },
-    { id: 'a37', name: 'デリート・レイ', rarity: 'prare', desc: 'ランダムな敵おはじきを10個消去する' },
+    { id: 'a37', name: 'マスター・オブ・フィールド', rarity: 'prare', desc: '盤面の半分を自分の色に塗り替える' },
     { id: 'a38', name: 'インフィニティ・ターン', rarity: 'prare', desc: 'このターン、無限におはじきを置ける(5秒間)' },
     { id: 'a39', name: 'ジャッジメント・デイ', rarity: 'prare', desc: '相手のスコアを0にし、自分のスコアを加算する' },
     { id: 'a40', name: 'レボリューション', rarity: 'prare', desc: '自分と相手のおはじきを全て入れ替える' }
@@ -416,7 +415,6 @@ function initGame() {
     awakeningCooldownMax = 0;
     btnSpecial.disabled = false;
     elAwakeningGauge.style.width = "0%";
-    awakeningTickMultiplier = 1;
 
     // Start Cooldown immediately if skill is equipped
     if (playerData.equippedAwakening) {
@@ -785,7 +783,11 @@ async function handleCellClick(x, y) {
             
             // Apply cooldown based on rarity
             let sd = SKILL_DATA.find(s => s.id === activeSkillId);
-                let cd = sd.cooldown || 10;
+            if (sd) {
+                let cd = 10; // Rare
+                if (sd.rarity === 'srare') cd = 20;
+                else if (sd.rarity === 'urare') cd = 30;
+                else if (sd.rarity === 'prare') cd = 60;
                 skillCooldowns[sd.id] = cd;
             }
             
@@ -1269,13 +1271,12 @@ function startAwakeningCooldown(durationMs) {
     awakeningInterval = setInterval(() => {
         if (isGameOver) return;
         
-        awakeningCooldownCurrent -= 100 * awakeningTickMultiplier;
+        awakeningCooldownCurrent -= 100;
         if (awakeningCooldownCurrent <= 0) {
             awakeningCooldownCurrent = 0;
             clearInterval(awakeningInterval);
             btnSpecial.disabled = false;
             elAwakeningGauge.style.width = "0%";
-            awakeningTickMultiplier = 1; // RESET
         } else {
             const percent = (awakeningCooldownCurrent / awakeningCooldownMax) * 100;
             elAwakeningGauge.style.width = percent + "%";
@@ -1304,30 +1305,7 @@ function activateAwakening() {
     if (ad.id === 'a1') movesRemaining += 2; // Triple
     else if (ad.id === 'a2') movesRemaining += 1; // Quick
     else if (ad.id === 'a6') movesRemaining += 4; // God
-    else if (ad.id === 'a19') {
-        awakeningTickMultiplier = 2; // Double speed
-    }
-    else if (ad.id === 'a31') {
-        skillCooldowns = {}; // Reset all
-        showToast("スキルクールタイムリセット！");
-    }
-    else if (ad.id === 'a37') {
-        // Delete 10 random enemy pieces
-        let enemyPieces = [];
-        for (let y = 0; y < GRID_SIZE; y++) {
-            for (let x = 0; x < GRID_SIZE; x++) {
-                if (board[y][x] === BLUE) enemyPieces.push({x, y});
-            }
-        }
-        for (let i = 0; i < 10 && enemyPieces.length > 0; i++) {
-            let idx = Math.floor(Math.random() * enemyPieces.length);
-            let p = enemyPieces.splice(idx, 1)[0];
-            board[p.y][p.x] = EMPTY;
-        }
-        renderBoard();
-        updateScore();
-        showToast("デリート・レイ！！");
-    }
+    // Other effects would be handled in placePiece or similar if they were area effects
 }
 
 btnSkill.addEventListener('click', () => {
