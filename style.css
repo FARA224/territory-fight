@@ -125,8 +125,8 @@ body {
 
 /* Lobby Overlay */
 #lobby {
-    backdrop-filter: blur(12px);
-    background-color: rgba(241, 242, 246, 0.4);
+    backdrop-filter: blur(24px);
+    background-color: rgba(241, 242, 246, 0.6);
 }
 
 /* Lobby Layout */
@@ -1509,13 +1509,15 @@ input:checked+.slider:before {
 }
 
 #start-sequence-text {
-    font-size: 8rem;
+    font-size: clamp(3rem, 15vw, 8rem);
     font-weight: 900;
     color: #fff;
     text-shadow: 0 0 30px rgba(0,0,0,0.5);
     font-family: var(--font-main);
     text-transform: uppercase;
-    letter-spacing: 1rem;
+    letter-spacing: 2vw;
+    width: 100%;
+    text-align: center;
 }
 
 .start-pop-anim {
