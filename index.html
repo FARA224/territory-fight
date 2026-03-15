@@ -212,11 +212,25 @@
                                     <span class="slider round"></span>
                                 </label>
                             </div>
-                            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 10px;">
+                            <div class="setting-row">
                                 <span>獲得した称号</span>
                                 <select id="title-select" class="title-select-dropdown">
                                     <option value="おはじき初心者">おはじき初心者</option>
                                 </select>
+                            </div>
+                            <div class="setting-row">
+                                <span>データ保存方法</span>
+                                <select id="save-method-select" class="save-method-dropdown">
+                                    <option value="localStorage">localStorage（推奨）</option>
+                                    <option value="cookie">Cookie</option>
+                                </select>
+                            </div>
+                            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 10px;">
+                                <span>データ管理</span>
+                                <div style="display: flex; gap: 10px; width: 100%;">
+                                    <button id="btn-export-cookie" class="btn secondary-btn" style="flex: 1;">Cookieに保存</button>
+                                    <button id="btn-import-cookie" class="btn secondary-btn" style="flex: 1;">Cookieから読み込み</button>
+                                </div>
                             </div>
                             <div class="setting-row">
                                 <button id="btn-reset-data" class="btn secondary-btn" style="width: 100%; margin-top: 20px;">セーブデータ初期化</button>

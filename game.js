@@ -331,7 +331,82 @@ function unlockAudio() {
 }
 
 function savePlayerData() {
-    localStorage.setItem('territorySkills', JSON.stringify(playerData));
+    // 保存方法の設定を確認
+    const saveMethod = btnSaveMethod ? btnSaveMethod.value : 'localStorage';
+    
+    if (saveMethod === 'cookie') {
+        savePlayerDataToCookie();
+    } else {
+        localStorage.setItem('territorySkills', JSON.stringify(playerData));
+    }
+}
+
+// Cookie操作ヘルパー関数
+function setCookie(name, value, days) {
+    let expires = "";
+    if (days) {
+        const date = new Date();
+        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+        expires = "; expires=" + date.toUTCString();
+    }
+    document.cookie = name + "=" + encodeURIComponent(value) + expires + "; path=/; SameSite=Lax";
+}
+
+function getCookie(name) {
+    const nameEQ = name + "=";
+    const ca = document.cookie.split(';');
+    for(let i = 0; i < ca.length; i++) {
+        let c = ca[i];
+        while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) === 0) return decodeURIComponent(c.substring(nameEQ.length, c.length));
+    }
+    return null;
+}
+
+function deleteCookie(name) {
+    document.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax";
+}
+
+// Cookie保存機能
+function savePlayerDataToCookie() {
+    const dataString = JSON.stringify(playerData);
+    setCookie('territorySkills', dataString, 365); // 1年間有効
+    showToast("データをCookieに保存しました！");
+}
+
+// Cookie読み込み機能
+function loadPlayerDataFromCookie() {
+    const saved = getCookie('territorySkills');
+    if (saved) {
+        playerData = JSON.parse(saved);
+        if(!playerData.equippedSkills) playerData.equippedSkills = [null, null, null];
+        if(playerData.unlockedAwakenings === undefined) playerData.unlockedAwakenings = [];
+        if(playerData.equippedAwakening === undefined) playerData.equippedAwakening = null;
+        if(playerData.coins === undefined) playerData.coins = 500;
+        if(playerData.hasRolledFreeGacha === undefined) playerData.hasRolledFreeGacha = false;
+        if(playerData.hasRolledFreeAwakening === undefined) playerData.hasRolledFreeAwakening = false;
+        if(playerData.lastTrophyRewardLevel === undefined) playerData.lastTrophyRewardLevel = 0;
+        if(playerData.rewardClaimedTrophies === undefined) playerData.rewardClaimedTrophies = 0;
+        if(playerData.unlockedTitles === undefined) playerData.unlockedTitles = ["おはじき初心者"];
+        if(playerData.currentTitle === undefined) playerData.currentTitle = "おはじき初心者";
+        return true;
+    }
+    return false;
+}
+
+// トロフィー用Cookie保存
+function saveTrophiesToCookie() {
+    setCookie('territoryTrophies', storedTrophies.toString(), 365);
+}
+
+// トロフィー用Cookie読み込み
+function loadTrophiesFromCookie() {
+    const saved = getCookie('territoryTrophies');
+    if (saved) {
+        storedTrophies = parseInt(saved);
+        return true;
+    }
+    return false;
 }
 
 function renderTitleSelection() {
@@ -1584,7 +1659,14 @@ function endGame() {
             let coinGain = Math.floor(COIN_REWARD * coinRewardMultiplier);
             
             storedTrophies += trophyGain;
-            localStorage.setItem('territoryTrophies', storedTrophies);
+            
+            // 保存方法の設定を確認
+            const saveMethod = btnSaveMethod ? btnSaveMethod.value : 'localStorage';
+            if (saveMethod === 'cookie') {
+                saveTrophiesToCookie();
+            } else {
+                localStorage.setItem('territoryTrophies', storedTrophies);
+            }
             
             playerData.coins += coinGain; 
             
@@ -2209,12 +2291,66 @@ if (elLobbyVol) elLobbyVol.addEventListener('input', handleVolInput);
 
 if (themeSwitch) themeSwitch.addEventListener('change', handleThemeInput);
 const elLobbyTheme = document.getElementById('lobby-theme-switch');
-if (elLobbyTheme) elLobbyTheme.addEventListener('change', handleThemeInput);
+if (elLobbyTheme) elLobbyTheme.addEventListener('input', handleThemeInput);
+
+// Cookie管理ボタン要素
+const btnSaveMethod = document.getElementById('save-method-select');
+const btnExportCookie = document.getElementById('btn-export-cookie');
+const btnImportCookie = document.getElementById('btn-import-cookie');
+
+// データ保存方法の選択
+if (btnSaveMethod) {
+    btnSaveMethod.addEventListener('change', (e) => {
+        const method = e.target.value;
+        if (method === 'cookie') {
+            if (confirm('Cookie保存に切り替えます。現在のlocalStorageデータをCookieに移行しますか？')) {
+                savePlayerDataToCookie();
+                saveTrophiesToCookie();
+                showToast('Cookie保存に切り替え、データを移行しました。');
+            } else {
+                e.target.value = 'localStorage';
+            }
+        }
+    });
+}
+
+// Cookieに保存ボタン
+if (btnExportCookie) {
+    btnExportCookie.addEventListener('click', () => {
+        if (confirm('現在のゲームデータをCookieに保存します。よろしいですか？')) {
+            savePlayerDataToCookie();
+            saveTrophiesToCookie();
+        }
+    });
+}
+
+// Cookieから読み込みボタン
+if (btnImportCookie) {
+    btnImportCookie.addEventListener('click', () => {
+        if (confirm('Cookieからゲームデータを読み込みます。現在のデータは上書きされます。よろしいですか？')) {
+            const success = loadPlayerDataFromCookie() && loadTrophiesFromCookie();
+            if (success) {
+                updateLobbyUIWithTitle();
+                updateLobbyTopBar();
+                renderLobbyEquippedCards();
+                showToast('Cookieからデータを読み込みました！');
+            } else {
+                showToast('Cookieに保存されたデータが見つかりません。');
+            }
+        }
+    });
+}
 
 document.getElementById('btn-reset-data').addEventListener('click', () => {
-    if(confirm("全てのスキルとトロフィーのエータを初期化します。よろしいですか？")) {
+    if(confirm("全てのスキルとトロフィーのデータを初期化します。よろしいですか？")) {
         localStorage.clear();
-        location.reload();
+        // Cookieもクリア
+        deleteCookie('territorySkills');
+        deleteCookie('territoryTrophies');
+        showToast('データを初期化しました。');
+        setTimeout(() => {
+            location.reload();
+        }, 1000);
     }
 });
 
