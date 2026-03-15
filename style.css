@@ -49,23 +49,76 @@ body {
 /* Semi-transparent cursor follower */
 #cursor-follower {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 24px;
-    height: 24px;
-    background-color: rgba(255, 255, 255, 0.7);
+    width: 30px;
+    height: 30px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.4) 70%, transparent 100%);
     border-radius: 50%;
     pointer-events: none;
-    z-index: 9999;
-    transform: translate(-50%, -50%);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    z-index: 10000;
+    transition: transform 0.1s ease-out;
     opacity: 0;
-    /* hidden when mouse leaves or game not active */
-    transition: opacity 0.2s ease;
 }
 
 #cursor-follower.active {
     opacity: 1;
+}
+
+/* Game Mode Selection */
+.game-mode-selection {
+    text-align: center;
+}
+
+.game-mode-dropdown {
+    width: 100%;
+    max-width: 320px;
+    padding: 15px 20px;
+    font-size: 1rem;
+    font-family: var(--font-main);
+    font-weight: 800;
+    border: none;
+    border-radius: 15px;
+    background-color: var(--red-color);
+    color: white;
+    cursor: pointer;
+    transition: transform 0.2s ease, background-color 0.2s ease;
+    box-shadow: 0 4px 15px rgba(255, 71, 87, 0.3);
+    text-align: center;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    position: relative;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 15px center;
+    background-size: 20px;
+    padding-right: 50px;
+}
+
+.game-mode-dropdown:hover {
+    background-color: #ff6b81;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 71, 87, 0.4);
+}
+
+.game-mode-dropdown:active {
+    transform: scale(0.95);
+}
+
+.game-mode-dropdown:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(255, 71, 87, 0.3), 0 4px 15px rgba(255, 71, 87, 0.3);
+}
+
+/* Dark theme adjustments */
+[data-theme="dark"] .game-mode-dropdown {
+    background-color: var(--red-color);
+    color: white;
+    box-shadow: 0 4px 15px rgba(255, 107, 129, 0.3);
+}
+
+[data-theme="dark"] .game-mode-dropdown:hover {
+    background-color: #ff6b81;
+    box-shadow: 0 6px 20px rgba(255, 107, 129, 0.4);
 }
 
 /* Main App Wrapper */
@@ -692,10 +745,31 @@ input:checked+.slider:before {
     width: 100%;
     height: 100%;
     display: grid;
+    padding: 4px;
+    box-sizing: border-box;
+    gap: 2px;
+}
+
+/* Board size variations */
+#play-board.board-6x6 {
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: repeat(6, 1fr);
+}
+
+#play-board.board-10x10 {
     grid-template-columns: repeat(10, 1fr);
     grid-template-rows: repeat(10, 1fr);
-    background-color: var(--grid-line);
-    gap: 2px;
+}
+
+/* Board container size variations */
+#play-board-container.board-6x6 {
+    width: min(100%, calc(100vh - 320px), 300px);
+    aspect-ratio: 1;
+}
+
+#play-board-container.board-10x10 {
+    width: min(100%, calc(100vh - 320px), 480px);
+    aspect-ratio: 1;
 }
 
 .cell {
@@ -705,6 +779,8 @@ input:checked+.slider:before {
     display: flex;
     justify-content: center;
     align-items: center;
+    border: 1px solid var(--grid-line);
+    box-sizing: border-box;
 }
 
 .cell::after {
@@ -1631,6 +1707,13 @@ input:checked+.slider:before {
     background-color: rgba(255, 165, 2, 0.6) !important;
 }
 
+.skill-aim-invalid {
+    background-color: rgba(255, 71, 87, 0.4) !important;
+    opacity: 0.5;
+    border: 2px dashed #ff4757 !important;
+    animation: skill-aim-invalid-pulse 1s infinite alternate;
+}
+
 .skill-candidate {
     outline: 5px solid #fff !important;
     outline-offset: -5px;
@@ -1641,6 +1724,11 @@ input:checked+.slider:before {
 @keyframes skill-aim-pulse {
     from { opacity: 0.4; transform: scale(0.95); }
     to { opacity: 0.8; transform: scale(1.05); }
+}
+
+@keyframes skill-aim-invalid-pulse {
+    from { opacity: 0.3; transform: scale(0.95); }
+    to { opacity: 0.6; transform: scale(1.02); }
 }
 
 /* --- Responsive Adjustments --- */

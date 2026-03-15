@@ -1,5 +1,13 @@
 // Game Configuration
-const GRID_SIZE = 10;
+const GAME_MODES = {
+    long: { gridSize: 10, trophyReward: 20, coinReward: 200 },
+    short: { gridSize: 6, trophyReward: 10, coinReward: 100 }
+};
+
+let currentGameMode = 'long'; // Default mode
+let GRID_SIZE = GAME_MODES[currentGameMode].gridSize;
+let TROPHY_REWARD = GAME_MODES[currentGameMode].trophyReward;
+let COIN_REWARD = GAME_MODES[currentGameMode].coinReward;
 const RED = 1;
 const BLUE = -1;
 const EMPTY = 0;
@@ -85,6 +93,63 @@ let consecutiveBlocksBlue = 0;
 let awakeningCooldownMax = 0; // ms
 let awakeningCooldownCurrent = 0; // ms
 let awakeningInterval = null;
+let awakeningActive = false;
+
+// Awakening effect variables
+let awakeningProtection = 0;
+let awakeningDoubleTap = false;
+let awakeningSmallImpact = false;
+let coinRewardMultiplier = 1;
+let cpuSpeedMultiplier = 1;
+let awakeningLuckySeven = false;
+let awakeningAreaSweep = false;
+let awakeningChainReaction = false;
+let awakeningPowerSurge = false;
+let awakeningShieldGenerator = false;
+let awakeningMegaImpact = false;
+let scoreMultiplier = 1;
+let awakeningQuadCore = false;
+let awakeningGodBreath = false;
+let awakeningTimeStop = 0;
+let awakeningPerfectWall = false;
+let awakeningInfinityTurn = false;
+let infinityTurnEndTime = 0;
+let movesRemaining = 0;
+
+// Protection system for pieces
+let protectedPieces = []; // Array of {x, y, turns}
+
+function isPieceProtected(x, y) {
+    // Check temporary protection
+    if (protectedPieces.some(p => p.x === x && p.y === y && p.turns > 0)) {
+        return true;
+    }
+    
+    // Check permanent protection from God Breath
+    if (awakeningGodBreath && board[y][x] === RED) {
+        return true;
+    }
+    
+    // Check absolute protection from Perfect Wall
+    if (awakeningPerfectWall && board[y][x] === RED) {
+        return true;
+    }
+    
+    return false;
+}
+
+function updateProtection() {
+    protectedPieces = protectedPieces.filter(p => {
+        p.turns--;
+        return p.turns > 0;
+    });
+}
+
+function addProtection(x, y, turns) {
+    // Remove existing protection for this position if any
+    protectedPieces = protectedPieces.filter(p => !(p.x === x && p.y === y));
+    protectedPieces.push({x, y, turns});
+}
 
 // ----- Skills Data -----
 // Rarity: rare(緑), srare(水), urare(紫), prare(黄)
@@ -390,6 +455,9 @@ function initGame() {
     // Hide UI
     elLobby.classList.add('hidden');
     elResult.classList.add('hidden');
+    
+    // Hide rewards display by default
+    resRewardsDisplay.classList.add('hidden');
 
     // Reset Board
     elBoard.innerHTML = '';
@@ -415,6 +483,29 @@ function initGame() {
     awakeningCooldownMax = 0;
     btnSpecial.disabled = false;
     elAwakeningGauge.style.width = "0%";
+    
+    // Reset awakening effects
+    awakeningActive = false;
+    awakeningProtection = 0;
+    awakeningDoubleTap = false;
+    awakeningSmallImpact = false;
+    coinRewardMultiplier = 1;
+    cpuSpeedMultiplier = 1;
+    awakeningLuckySeven = false;
+    awakeningAreaSweep = false;
+    awakeningChainReaction = false;
+    awakeningPowerSurge = false;
+    awakeningShieldGenerator = false;
+    awakeningMegaImpact = false;
+    scoreMultiplier = 1;
+    awakeningQuadCore = false;
+    awakeningGodBreath = false;
+    awakeningTimeStop = 0;
+    awakeningPerfectWall = false;
+    awakeningInfinityTurn = false;
+    infinityTurnEndTime = 0;
+    movesRemaining = 0;
+    protectedPieces = []; // Reset protection system
 
     // Start Cooldown immediately if skill is equipped
     if (playerData.equippedAwakening) {
@@ -428,7 +519,7 @@ function initGame() {
         }
     }
 
-    // Create 10x10 grid
+    // Create grid based on game mode
     for (let y = 0; y < GRID_SIZE; y++) {
         let row = [];
         let rowDOM = [];
@@ -451,6 +542,10 @@ function initGame() {
         board.push(row);
         cells.push(rowDOM);
     }
+    
+    // Apply board size classes
+    elBoard.className = `board-${GRID_SIZE}x${GRID_SIZE}`;
+    elBoardContainer.className = `turn-red board-${GRID_SIZE}x${GRID_SIZE}`;
 
     // Initial Placements
     // CPU: Blue at Top-Left (0, 0)
@@ -506,18 +601,41 @@ function handleCellHover(x, y) {
     if (isAimingSkill && activeSkillPattern) {
         // Skill Aim Mode
         clearAimHighlight();
+        let validPositions = 0;
+        
         activeSkillPattern.forEach(([dx, dy]) => {
             const nx = x + dx;
             const ny = y + dy;
+            
             if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
                 const cell = cells[ny][nx];
-                cell.classList.add('skill-aim-target');
-                // Check if it's an enemy piece that will be overwritten
+                validPositions++;
+                
+                // Check if this position can be overwritten
                 if (board[ny][nx] === BLUE || board[ny][nx] === BLUE_BLOCK) {
-                    cell.classList.add('overwrite');
+                    cell.classList.add('skill-aim-target', 'overwrite');
+                } else if (board[ny][nx] === EMPTY) {
+                    cell.classList.add('skill-aim-target');
+                } else {
+                    // RED or RED_BLOCK - cannot be overwritten
+                    cell.classList.add('skill-aim-invalid');
                 }
             }
         });
+        
+        // Show feedback about valid positions
+        if (lastTappedSkillCell && lastTappedSkillCell.x === x && lastTappedSkillCell.y === y) {
+            let canPlace = activeSkillPattern.some(([dx, dy]) => {
+                const nx = x + dx;
+                const ny = y + dy;
+                return nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && 
+                       (board[ny][nx] === EMPTY || board[ny][nx] === BLUE || board[ny][nx] === BLUE_BLOCK);
+            });
+            
+            if (!canPlace) {
+                showToast("この位置にはスキルを使えません");
+            }
+        }
         return;
     }
 
@@ -534,7 +652,7 @@ function handleCellOut(x, y) {
 function clearAimHighlight() {
     for (const row of cells) {
         for (const cell of row) {
-            cell.classList.remove('skill-aim-target', 'overwrite', 'skill-candidate');
+            cell.classList.remove('skill-aim-target', 'overwrite', 'skill-candidate', 'skill-aim-invalid');
         }
     }
 }
@@ -560,10 +678,10 @@ function renderBoard() {
 // Place piece
 function placePiece(x, y, player, checkBlocks = true) {
     // Awakening Effects for special placements
-    if (awakeningActive) {
+    if (awakeningActive && player === RED) {
         const ad = AWAKENING_DATA.find(a => a.id === playerData.equippedAwakening);
-        if (ad && (ad.id === 'a3' || ad.id === 'a4')) {
-            // Area clearing effects
+        if (ad) {
+            // Area clearing effects (a3, a4)
             if (ad.id === 'a3') {
                 // 3x3 sweep
                 for (let dy = -1; dy <= 1; dy++) {
@@ -574,26 +692,181 @@ function placePiece(x, y, player, checkBlocks = true) {
                         }
                     }
                 }
+                showToast(`${ad.name} !!`);
+                awakeningActive = false; // consumed
+                btnSpecial.classList.remove('active-awakening');
+                btnSpecial.style.boxShadow = "";
             } else if (ad.id === 'a4') {
                 // Cross blaze
                 for (let i = 0; i < GRID_SIZE; i++) {
                     if (board[y][i] === BLUE) board[y][i] = EMPTY;
                     if (board[i][x] === BLUE) board[i][x] = EMPTY;
                 }
+                showToast(`${ad.name} !!`);
+                awakeningActive = false; // consumed
+                btnSpecial.classList.remove('active-awakening');
+                btnSpecial.style.boxShadow = "";
             }
-            showToast(`${ad.name} !!`);
-            awakeningActive = false; // consumed
-            btnSpecial.classList.remove('active-awakening');
-            btnSpecial.style.boxShadow = "";
         }
     }
 
     board[y][x] = player;
 
+    // Apply protection if awakeningProtection is active (Mini Wall, Iron Guard, etc.)
+    if (player === RED && awakeningProtection > 0) {
+        addProtection(x, y, awakeningProtection);
+        awakeningProtection = 0; // Reset after use
+        showToast("おはじきを保護しました！");
+    }
+
     // Play Set Sound effect
     playAudio(seSet);
 
     renderBoard();
+
+    // Apply awakening effects that trigger after placement
+    if (player === RED && awakeningActive) {
+        const ad = AWAKENING_DATA.find(a => a.id === playerData.equippedAwakening);
+        if (ad) {
+            // Small Impact (a11) - clear surrounding 1 tile enemies
+            if (awakeningSmallImpact) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        if (dx === 0 && dy === 0) continue; // skip the placed piece
+                        const nx = x + dx, ny = y + dy;
+                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
+                            if (board[ny][nx] === BLUE || board[ny][nx] === BLUE_BLOCK) {
+                                board[ny][nx] = EMPTY;
+                            }
+                        }
+                    }
+                }
+                awakeningSmallImpact = false;
+                showToast("スモール・インパクト発動！");
+            }
+            
+            // Area Sweep (a15) - clear 3x3 area
+            else if (awakeningAreaSweep) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        const nx = x + dx, ny = y + dy;
+                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
+                            if (board[ny][nx] === BLUE || board[ny][nx] === BLUE_BLOCK) {
+                                board[ny][nx] = EMPTY;
+                            }
+                        }
+                    }
+                }
+                awakeningAreaSweep = false;
+                showToast("エリア・スイープ発動！");
+            }
+            
+            // Mega Impact (a23) - clear 5x5 area
+            else if (awakeningMegaImpact) {
+                for (let dy = -2; dy <= 2; dy++) {
+                    for (let dx = -2; dx <= 2; dx++) {
+                        const nx = x + dx, ny = y + dy;
+                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
+                            if (board[ny][nx] === BLUE || board[ny][nx] === BLUE_BLOCK) {
+                                board[ny][nx] = EMPTY;
+                            }
+                        }
+                    }
+                }
+                awakeningMegaImpact = false;
+                showToast("メガ・インパクト発動！");
+            }
+            
+            // Double Tap (a10) - add random adjacent piece
+            else if (awakeningDoubleTap) {
+                const adjacentPositions = [
+                    {dx: -1, dy: 0}, {dx: 1, dy: 0},
+                    {dx: 0, dy: -1}, {dx: 0, dy: 1}
+                ];
+                const validPositions = adjacentPositions.filter(({dx, dy}) => {
+                    const nx = x + dx, ny = y + dy;
+                    return nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && 
+                           board[ny][nx] === EMPTY;
+                });
+                if (validPositions.length > 0) {
+                    const randomPos = validPositions[Math.floor(Math.random() * validPositions.length)];
+                    board[y + randomPos.dy][x + randomPos.dx] = RED;
+                }
+                awakeningDoubleTap = false;
+                showToast("ダブル・タップ発動！");
+            }
+            
+            // Chain Reaction (a17) - add 2 pieces in line
+            else if (awakeningChainReaction) {
+                const directions = [
+                    {dx: 1, dy: 0}, {dx: -1, dy: 0},
+                    {dx: 0, dy: 1}, {dx: 0, dy: -1}
+                ];
+                let placed = 0;
+                for (const dir of directions) {
+                    if (placed >= 2) break;
+                    for (let dist = 1; dist <= 3 && placed < 2; dist++) {
+                        const nx = x + dir.dx * dist;
+                        const ny = y + dir.dy * dist;
+                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && board[ny][nx] === EMPTY) {
+                            board[ny][nx] = RED;
+                            placed++;
+                            break;
+                        }
+                    }
+                }
+                awakeningChainReaction = false;
+                showToast("チェイン・リアクション発動！");
+            }
+            
+            // Quad Core (a31) - place 4 pieces in square
+            else if (awakeningQuadCore) {
+                const positions = [
+                    {dx: 0, dy: 0}, {dx: 1, dy: 0},
+                    {dx: 0, dy: 1}, {dx: 1, dy: 1}
+                ];
+                let canPlace = true;
+                for (const pos of positions) {
+                    const nx = x + pos.dx;
+                    const ny = y + pos.dy;
+                    if (nx >= GRID_SIZE || ny >= GRID_SIZE || board[ny][nx] !== EMPTY) {
+                        canPlace = false;
+                        break;
+                    }
+                }
+                if (canPlace) {
+                    for (const pos of positions) {
+                        board[y + pos.dy][x + pos.dx] = RED;
+                    }
+                }
+                awakeningQuadCore = false;
+                showToast("クアッド・コア発動！");
+            }
+            
+            // Shield Generator (a22) - protect surrounding pieces
+            else if (awakeningShieldGenerator) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        const nx = x + dx, ny = y + dy;
+                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
+                            if (board[ny][nx] === RED) {
+                                addProtection(nx, ny, 2);
+                            }
+                        }
+                    }
+                }
+                awakeningShieldGenerator = false;
+                showToast("シールド・ジェネレーター発動！");
+            }
+            
+            // Reset awakening state if it was a one-time effect
+            if (['a11', 'a15', 'a23', 'a10', 'a17', 'a31', 'a22'].includes(ad.id)) {
+                awakeningActive = false;
+                btnSpecial.classList.remove('active-awakening');
+                btnSpecial.style.boxShadow = "";
+            }
+        }
+    }
 
     if (checkBlocks) {
         let newBlocks = detectBlocks(player);
@@ -624,29 +897,55 @@ function detectBlocks(player) {
 
     for (let y = 0; y < GRID_SIZE - 1; y++) {
         for (let x = 0; x < GRID_SIZE - 1; x++) {
-            // Check RED
-            if (board[y][x] === RED && board[y][x + 1] === RED &&
-                board[y + 1][x] === RED && board[y + 1][x + 1] === RED) {
-                // Form Red Block
-                board[y][x] = RED_BLOCK;
-                board[y][x + 1] = RED_BLOCK;
-                board[y + 1][x] = RED_BLOCK;
-                board[y + 1][x + 1] = RED_BLOCK;
-                if (player === RED) formed++;
-            }
+            // Check RED with Power Surge effect
+            if (player === RED && awakeningPowerSurge) {
+                // With Power Surge, form blocks with only 3 pieces in 2x2 area
+                let redCount = 0;
+                if (board[y][x] === RED) redCount++;
+                if (board[y][x + 1] === RED) redCount++;
+                if (board[y + 1][x] === RED) redCount++;
+                if (board[y + 1][x + 1] === RED) redCount++;
+                
+                if (redCount >= 3) {
+                    // Convert all red pieces in this area to blocks
+                    if (board[y][x] === RED) board[y][x] = RED_BLOCK;
+                    if (board[y][x + 1] === RED) board[y][x + 1] = RED_BLOCK;
+                    if (board[y + 1][x] === RED) board[y + 1][x] = RED_BLOCK;
+                    if (board[y + 1][x + 1] === RED) board[y + 1][x + 1] = RED_BLOCK;
+                    formed++;
+                }
+            } else {
+                // Normal block detection
+                if (board[y][x] === RED && board[y][x + 1] === RED &&
+                    board[y + 1][x] === RED && board[y + 1][x + 1] === RED) {
+                    // Form Red Block
+                    board[y][x] = RED_BLOCK;
+                    board[y][x + 1] = RED_BLOCK;
+                    board[y + 1][x] = RED_BLOCK;
+                    board[y + 1][x + 1] = RED_BLOCK;
+                    if (player === RED) formed++;
+                }
 
-            // Check BLUE
-            if (board[y][x] === BLUE && board[y][x + 1] === BLUE &&
-                board[y + 1][x] === BLUE && board[y + 1][x + 1] === BLUE) {
-                // Form Blue Block
-                board[y][x] = BLUE_BLOCK;
-                board[y][x + 1] = BLUE_BLOCK;
-                board[y + 1][x] = BLUE_BLOCK;
-                board[y + 1][x + 1] = BLUE_BLOCK;
-                if (player === BLUE) formed++;
+                // Check BLUE
+                if (board[y][x] === BLUE && board[y][x + 1] === BLUE &&
+                    board[y + 1][x] === BLUE && board[y + 1][x + 1] === BLUE) {
+                    // Form Blue Block
+                    board[y][x] = BLUE_BLOCK;
+                    board[y][x + 1] = BLUE_BLOCK;
+                    board[y + 1][x] = BLUE_BLOCK;
+                    board[y + 1][x + 1] = BLUE_BLOCK;
+                    if (player === BLUE) formed++;
+                }
             }
         }
     }
+    
+    // Reset Power Surge after use
+    if (formed > 0 && player === RED && awakeningPowerSurge) {
+        awakeningPowerSurge = false;
+        showToast("パワー・サージ発動！ブロック形成率アップ！");
+    }
+    
     if (formed > 0) renderBoard();
     return formed;
 }
@@ -685,6 +984,13 @@ function updateScore() {
 
     scoreRed = Math.floor(redBlockCells / 4) * 10;
     scoreBlue = Math.floor(blueBlockCells / 4) * 10;
+    
+    // Apply score multiplier if active
+    if (scoreMultiplier > 1) {
+        scoreRed = Math.floor(scoreRed * scoreMultiplier);
+        scoreMultiplier = 1; // Reset after use
+        showToast("スコア・マルチプライヤー発動！スコアが2倍になりました！");
+    }
 
     updateScoreUI();
 }
@@ -701,6 +1007,9 @@ function isValidMoveOnBoard(x, y, player, checkBoard) {
     // Check 1 & 2: Cannot place on own or any block
     if (Math.abs(currentVal) === 2) return false; // Blocks are invulnerable
     if (currentVal === player) return false; // Cannot place on own
+    
+    // Check if piece is protected (only for enemy pieces)
+    if (currentVal === -player && isPieceProtected(x, y)) return false;
 
     // Must be adjacent to an existing Ohajiki of the SAME color
     let isAdjacent = false;
@@ -768,17 +1077,33 @@ async function handleCellClick(x, y) {
         // Two-step placement for mobile/touch
         if (lastTappedSkillCell && lastTappedSkillCell.x === x && lastTappedSkillCell.y === y) {
             // Execute Skill on second tap
+            let piecesPlaced = 0;
+            let validPositions = 0;
+            
             activeSkillPattern.forEach(([dx, dy]) => {
                 const nx = x + dx;
                 const ny = y + dy;
+                validPositions++;
+                
                 if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
-                    // Ignore blocks rule: overwrite forcefully
+                    // Skills can overwrite enemy pieces and empty spaces, but not friendly pieces
                     if (board[ny][nx] !== RED && board[ny][nx] !== RED_BLOCK) {
                         placePiece(nx, ny, RED);
+                        piecesPlaced++;
                     }
                 }
             });
-            showToast("スキル発動!");
+            
+            // Only show success message if at least one piece was placed
+            if (piecesPlaced > 0) {
+                showToast(`スキル発動! ${piecesPlaced}個配置`);
+            } else {
+                showToast("スキルを配置できません");
+                // Don't end turn if skill failed to place
+                cancelSkillAim();
+                return;
+            }
+            
             cancelSkillAim();
             
             // Apply cooldown based on rarity
@@ -815,7 +1140,18 @@ async function handleCellClick(x, y) {
     // Place player piece
     placePiece(x, y, RED);
 
-    if (movesRemaining > 0) {
+    // Check Infinity Turn effect
+    if (awakeningInfinityTurn && Date.now() < infinityTurnEndTime) {
+        // Don't switch turns, allow another placement
+        showToast(`インフィニティ・ターン: 残り${Math.ceil((infinityTurnEndTime - Date.now()) / 1000)}秒`);
+        updatePlaceableHighlight();
+    } else if (awakeningLuckySeven && Math.random() < 0.07) {
+        // Lucky Seven - 7% chance for extra pieces
+        movesRemaining += 2;
+        showToast(`ラッキー・セブン発動！あと ${movesRemaining + 1} 回置けます！`);
+        awakeningLuckySeven = false;
+        updatePlaceableHighlight();
+    } else if (movesRemaining > 0) {
         movesRemaining--;
         showToast(`あと ${movesRemaining + 1} 回置けます！`);
         updatePlaceableHighlight();
@@ -831,15 +1167,13 @@ function setTurnUI() {
     if (currentPlayer === RED) {
         elInfoRed.classList.add('active-turn');
         elInfoBlue.classList.remove('active-turn');
-        elBoardContainer.classList.add('turn-red');
-        elBoardContainer.classList.remove('turn-blue');
+        elBoardContainer.className = `turn-red board-${GRID_SIZE}x${GRID_SIZE}`;
         elCpuThinking.classList.add('hidden');
         updatePlaceableHighlight();
     } else {
         elInfoBlue.classList.add('active-turn');
         elInfoRed.classList.remove('active-turn');
-        elBoardContainer.classList.add('turn-blue');
-        elBoardContainer.classList.remove('turn-red');
+        elBoardContainer.className = `turn-blue board-${GRID_SIZE}x${GRID_SIZE}`;
         elCpuThinking.classList.remove('hidden');
         clearPlaceableHighlight();
     }
@@ -874,6 +1208,9 @@ async function handleTurnTransition() {
         return;
     }
 
+    // Update protection at each turn change
+    updateProtection();
+
     if (currentPlayer === RED) {
         // Player turn start: reset awakening states if it was BLUE's turn before
         // (Actually it resets every time it's RED's turn)
@@ -900,7 +1237,17 @@ async function handleTurnTransition() {
         }
     } else {
         if (currentPlayer === BLUE) {
-            doCPUTurn();
+            // Check if time stop is active
+            if (awakeningTimeStop > 0) {
+                awakeningTimeStop--;
+                showToast(`タイム・ストップ効果: 残り${awakeningTimeStop}ターン`);
+                // Skip CPU turn
+                currentPlayer = RED;
+                setTurnUI();
+                handleTurnTransition();
+            } else {
+                doCPUTurn();
+            }
         }
     }
 }
@@ -1128,9 +1475,9 @@ function endGame() {
             resTitle.innerText = "勝利!!";
             resTitle.className = "result-title red don-anim";
             
-            // Add trophies & Coins
-            let trophyGain = 10;
-            let coinGain = 100;
+            // Add trophies & Coins based on game mode
+            let trophyGain = TROPHY_REWARD;
+            let coinGain = Math.floor(COIN_REWARD * coinRewardMultiplier);
             
             storedTrophies += trophyGain;
             localStorage.setItem('territoryTrophies', storedTrophies);
@@ -1156,6 +1503,8 @@ function endGame() {
             resTitle.innerText = "敗北...";
             resTitle.className = "result-title blue don-anim";
             playAudio(seResultLoss);
+            // Hide rewards display when losing
+            resRewardsDisplay.classList.add('hidden');
             return; // Skip the seResultLast play below
         } else {
             resTitle.innerText = "引き分け";
@@ -1197,6 +1546,22 @@ requestAnimationFrame(animateCursor);
 btnStart.addEventListener('click', () => {
     initGame();
 });
+
+// Game Mode Selection
+const gameModeSelect = document.getElementById('game-mode-select');
+
+gameModeSelect.addEventListener('change', () => {
+    selectGameMode(gameModeSelect.value);
+});
+
+function selectGameMode(mode) {
+    currentGameMode = mode;
+    GRID_SIZE = GAME_MODES[mode].gridSize;
+    TROPHY_REWARD = GAME_MODES[mode].trophyReward;
+    COIN_REWARD = GAME_MODES[mode].coinReward;
+    
+    playAudio(seButton);
+}
 
 if (btnToLobby) {
     btnToLobby.addEventListener('click', () => {
@@ -1242,9 +1607,6 @@ if (btnPass) {
         handleTurnTransition();
     });
 }
-
-let awakeningActive = false;
-let movesRemaining = 0;
 
 btnSpecial.addEventListener('click', () => {
     if (currentPlayer !== RED || isGameOver || isAimingSkill) return;
@@ -1302,9 +1664,310 @@ function activateAwakening() {
     startAwakeningCooldown(cd);
 
     // Effects
-    if (ad.id === 'a1') movesRemaining += 2; // Triple
-    else if (ad.id === 'a2') movesRemaining += 1; // Quick
-    else if (ad.id === 'a6') movesRemaining += 4; // God
+    if (ad.id === 'a1') movesRemaining += 2; // Triple Step
+    else if (ad.id === 'a2') movesRemaining += 1; // Quick Shot
+    else if (ad.id === 'a6') movesRemaining += 4; // God Speed
+    else if (ad.id === 'a3' || ad.id === 'a4') {
+        // Area Sweep & Cross Blaze - handled in placePiece function
+    }
+    else if (ad.id === 'a7') {
+        // Petit Heal - remove random enemy piece
+        let enemyPieces = [];
+        for (let y = 0; y < GRID_SIZE; y++) {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                if (board[y][x] === BLUE || board[y][x] === BLUE_BLOCK) {
+                    enemyPieces.push({x, y});
+                }
+            }
+        }
+        if (enemyPieces.length > 0) {
+            let target = enemyPieces[Math.floor(Math.random() * enemyPieces.length)];
+            board[target.y][target.x] = EMPTY;
+            renderBoard();
+            updateScore();
+            showToast("敵のおはじきを1つ消去！");
+        }
+    }
+    else if (ad.id === 'a8') {
+        // Search Light - highlight next placement area (handled in hover)
+        showToast("次の配置範囲がハイライトされます");
+    }
+    else if (ad.id === 'a9') {
+        // Mini Wall - next piece protected for 1 turn
+        awakeningProtection = 1;
+        showToast("次のおはじきは1ターン保護されます");
+    }
+    else if (ad.id === 'a10') {
+        // Double Tap - add random adjacent piece after placement
+        awakeningDoubleTap = true;
+        showToast("配置時に隣に追加おはじき！");
+    }
+    else if (ad.id === 'a11') {
+        // Small Impact - clear surrounding 1 tile enemies
+        awakeningSmallImpact = true;
+        showToast("次の配置で周囲1マスを消去！");
+    }
+    else if (ad.id === 'a12') {
+        // Coin Bonus - increase coin reward for this match
+        coinRewardMultiplier = 1.5;
+        showToast("コイン報酬が1.5倍になります！");
+    }
+    else if (ad.id === 'a13') {
+        // Speed Boost - reduce CPU thinking time
+        cpuSpeedMultiplier = 0.5;
+        showToast("CPUの思考時間が短縮！");
+    }
+    else if (ad.id === 'a14') {
+        // Lucky Seven - 7% chance for extra pieces
+        awakeningLuckySeven = true;
+        showToast("7%の確率で追加配置！");
+    }
+    // SRare effects
+    else if (ad.id === 'a15') {
+        // Area Sweep - clear 3x3 area
+        awakeningAreaSweep = true;
+        showToast("次の配置で3x3範囲を消去！");
+    }
+    else if (ad.id === 'a16') {
+        // Iron Guard - pieces protected for 2 turns
+        awakeningProtection = 2;
+        showToast("配置したおはじきは2ターン保護されます");
+    }
+    else if (ad.id === 'a17') {
+        // Chain Reaction - add 2 pieces in line
+        awakeningChainReaction = true;
+        showToast("配置時に直線上に2つ追加！");
+    }
+    else if (ad.id === 'a18') {
+        // Target Lock - remove 3 nearest enemy pieces
+        let enemyPieces = [];
+        for (let y = 0; y < GRID_SIZE; y++) {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                if (board[y][x] === BLUE || board[y][x] === BLUE_BLOCK) {
+                    enemyPieces.push({x, y});
+                }
+            }
+        }
+        // Sort by distance from center (approximate)
+        enemyPieces.sort((a, b) => {
+            let distA = Math.abs(a.x - GRID_SIZE/2) + Math.abs(a.y - GRID_SIZE/2);
+            let distB = Math.abs(b.x - GRID_SIZE/2) + Math.abs(b.y - GRID_SIZE/2);
+            return distA - distB;
+        });
+        for (let i = 0; i < Math.min(3, enemyPieces.length); i++) {
+            board[enemyPieces[i].y][enemyPieces[i].x] = EMPTY;
+        }
+        renderBoard();
+        updateScore();
+        showToast("最も近い敵おはじきを3つ消去！");
+    }
+    else if (ad.id === 'a19') {
+        // Power Surge - increased block formation chance
+        awakeningPowerSurge = true;
+        showToast("ブロック形成率がアップ！");
+    }
+    else if (ad.id === 'a20') {
+        // Energy Drain - steal some enemy score
+        let stolenScore = Math.min(20, scoreBlue);
+        scoreBlue -= stolenScore;
+        scoreRed += stolenScore;
+        updateScoreUI();
+        showToast(`${stolenScore}スコアを奪いました！`);
+    }
+    else if (ad.id === 'a21') {
+        movesRemaining += 2; // Double Move
+    }
+    else if (ad.id === 'a22') {
+        // Shield Generator - protect surrounding pieces
+        awakeningShieldGenerator = true;
+        showToast("周囲のおはじきを保護！");
+    }
+    // URare effects
+    else if (ad.id === 'a5') {
+        awakeningProtection = 2; // Impregnable Fortress
+        showToast("配置したおはじきは2ターン保護されます");
+    }
+    else if (ad.id === 'a23') {
+        awakeningMegaImpact = true; // Mega Impact
+        showToast("次の配置で5x5範囲を消去！");
+    }
+    else if (ad.id === 'a24') {
+        // Star Dust - place 5 random pieces
+        for (let i = 0; i < 5; i++) {
+            let placed = false;
+            for (let attempts = 0; attempts < 50; attempts++) {
+                let x = Math.floor(Math.random() * GRID_SIZE);
+                let y = Math.floor(Math.random() * GRID_SIZE);
+                if (board[y][x] === EMPTY) {
+                    placePiece(x, y, RED, false);
+                    placed = true;
+                    break;
+                }
+            }
+        }
+        showToast("ランダムに5つおはじきを配置！");
+    }
+    else if (ad.id === 'a25') {
+        // Lightning Strike - clear lines
+        for (let i = 0; i < 3; i++) {
+            let isHorizontal = Math.random() > 0.5;
+            let fixed = Math.floor(Math.random() * GRID_SIZE);
+            for (let j = 0; j < GRID_SIZE; j++) {
+                if (isHorizontal) {
+                    if (board[fixed][j] === BLUE || board[fixed][j] === BLUE_BLOCK) {
+                        board[fixed][j] = EMPTY;
+                    }
+                } else {
+                    if (board[j][fixed] === BLUE || board[j][fixed] === BLUE_BLOCK) {
+                        board[j][fixed] = EMPTY;
+                    }
+                }
+            }
+        }
+        renderBoard();
+        updateScore();
+        showToast("雷撃で敵おはじきを消去！");
+    }
+    else if (ad.id === 'a26') {
+        // Gravity Hole - pull enemies to center and remove
+        let centerX = Math.floor(GRID_SIZE / 2);
+        let centerY = Math.floor(GRID_SIZE / 2);
+        for (let y = 0; y < GRID_SIZE; y++) {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                if (board[y][x] === BLUE || board[y][x] === BLUE_BLOCK) {
+                    if (Math.abs(x - centerX) <= 2 && Math.abs(y - centerY) <= 2) {
+                        board[y][x] = EMPTY;
+                    }
+                }
+            }
+        }
+        renderBoard();
+        updateScore();
+        showToast("重力で敵おはじきを引き寄せ消去！");
+    }
+    else if (ad.id === 'a27') {
+        movesRemaining += 3; // Hyper Step
+    }
+    else if (ad.id === 'a28') {
+        awakeningProtection = 3; // Diamond Shield
+        showToast("配置したおはじきは3ターン保護されます");
+    }
+    else if (ad.id === 'a29') {
+        scoreMultiplier = 2; // Score Multiplier
+        showToast("このターンのスコアが2倍になります！");
+    }
+    else if (ad.id === 'a30') {
+        // Void Explosion - remove 10% of enemy pieces
+        let enemyPieces = [];
+        for (let y = 0; y < GRID_SIZE; y++) {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                if (board[y][x] === BLUE || board[y][x] === BLUE_BLOCK) {
+                    enemyPieces.push({x, y});
+                }
+            }
+        }
+        let toRemove = Math.floor(enemyPieces.length * 0.1);
+        for (let i = 0; i < toRemove; i++) {
+            let idx = Math.floor(Math.random() * enemyPieces.length);
+            board[enemyPieces[idx].y][enemyPieces[idx].x] = EMPTY;
+            enemyPieces.splice(idx, 1);
+        }
+        renderBoard();
+        updateScore();
+        showToast("敵おはじきの10%を消去！");
+    }
+    else if (ad.id === 'a31') {
+        // Quad Core - place 4 pieces in square
+        awakeningQuadCore = true;
+        showToast("一度に4つのおはじきを配置！");
+    }
+    // PRare effects
+    else if (ad.id === 'a32') {
+        // Ultimate End - clear all enemy pieces
+        for (let y = 0; y < GRID_SIZE; y++) {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                if (board[y][x] === BLUE || board[y][x] === BLUE_BLOCK) {
+                    board[y][x] = EMPTY;
+                }
+            }
+        }
+        renderBoard();
+        updateScore();
+        showToast("全ての敵おはじきを消去！");
+    }
+    else if (ad.id === 'a33') {
+        // God Breath - protect all pieces for entire match
+        awakeningGodBreath = true;
+        showToast("全てのおはじきが保護されます！");
+    }
+    else if (ad.id === 'a34') {
+        // Time Stop - opponent can't act for 2 turns
+        awakeningTimeStop = 2;
+        showToast("相手は2ターン行動不能！");
+    }
+    else if (ad.id === 'a35') {
+        // Galaxy Burst - massive explosion
+        for (let y = 0; y < GRID_SIZE; y++) {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                if (board[y][x] === BLUE || board[y][x] === BLUE_BLOCK) {
+                    if (Math.random() > 0.3) { // 70% chance to remove each enemy piece
+                        board[y][x] = EMPTY;
+                    }
+                }
+            }
+        }
+        renderBoard();
+        updateScore();
+        showToast("銀河爆発で敵陣を壊滅！");
+    }
+    else if (ad.id === 'a36') {
+        // Perfect Wall - absolute protection
+        awakeningPerfectWall = true;
+        showToast("おはじきが絶対に上書きされなくなります！");
+    }
+    else if (ad.id === 'a37') {
+        // Master of Field - convert half board to player color
+        let converted = 0;
+        let targetCells = Math.floor((GRID_SIZE * GRID_SIZE) / 2);
+        for (let y = 0; y < GRID_SIZE && converted < targetCells; y++) {
+            for (let x = 0; x < GRID_SIZE && converted < targetCells; x++) {
+                if (board[y][x] === BLUE || board[y][x] === BLUE_BLOCK) {
+                    board[y][x] = RED;
+                    converted++;
+                }
+            }
+        }
+        renderBoard();
+        updateScore();
+        showToast("盤面の半分を自分の色に！");
+    }
+    else if (ad.id === 'a38') {
+        // Infinity Turn - infinite pieces for 5 seconds
+        awakeningInfinityTurn = true;
+        infinityTurnEndTime = Date.now() + 5000;
+        showToast("5秒間無限に配置可能！");
+    }
+    else if (ad.id === 'a39') {
+        // Judgment Day - reset enemy score, add to player
+        scoreRed += scoreBlue;
+        scoreBlue = 0;
+        updateScoreUI();
+        showToast("相手のスコアを0にし、自分に加算！");
+    }
+    else if (ad.id === 'a40') {
+        // Revolution - swap all pieces
+        for (let y = 0; y < GRID_SIZE; y++) {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                if (board[y][x] === RED) board[y][x] = BLUE;
+                else if (board[y][x] === BLUE) board[y][x] = RED;
+                else if (board[y][x] === RED_BLOCK) board[y][x] = BLUE_BLOCK;
+                else if (board[y][x] === BLUE_BLOCK) board[y][x] = RED_BLOCK;
+            }
+        }
+        renderBoard();
+        updateScore();
+        showToast("全てのおはじきを入れ替え！");
+    }
     // Other effects would be handled in placePiece or similar if they were area effects
 }
 
@@ -1849,12 +2512,15 @@ function rollGacha(type) {
     savePlayerData();
     
     // Auto-hide
-    setTimeout(() => {
+    let autoHideTimeout = setTimeout(() => {
         if (!gachaResultOverlay.classList.contains('hidden')) {
             gachaResultOverlay.classList.add('hidden');
             gachaResultContent.innerHTML = '';
         }
     }, 5000);
+
+    // Store timeout ID for cleanup
+    gachaResultOverlay.dataset.timeoutId = autoHideTimeout;
 
     setTimeout(() => {
         display.innerHTML = type === 'skill' ? '<span>?</span>' : '<span>!</span>';
@@ -2029,6 +2695,11 @@ function handleReward(reward) {
 }
 
 btnCloseGacha.addEventListener('click', () => {
+    // Clear auto-hide timeout if it exists
+    if (gachaResultOverlay.dataset.timeoutId) {
+        clearTimeout(parseInt(gachaResultOverlay.dataset.timeoutId));
+        delete gachaResultOverlay.dataset.timeoutId;
+    }
     gachaResultOverlay.classList.add('hidden');
     gachaResultContent.innerHTML = '';
 });
