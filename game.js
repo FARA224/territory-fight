@@ -29,6 +29,8 @@ const elInfoBlue = document.getElementById('info-blue');
 const elCpuThinking = document.getElementById('cpu-thinking');
 const elCursorFollower = document.getElementById('cursor-follower');
 const elComboText = document.getElementById('combo-text');
+const elSkillActivationUI = document.getElementById('skill-activation-ui');
+const elAwakeningActivationUI = document.getElementById('awakening-activation-ui');
 
 const btnStart = document.getElementById('btn-start');
 const btnToLobby = document.getElementById('btn-to-lobby');
@@ -414,20 +416,30 @@ let activeSkillPattern = null;
 let activeSkillId = null;
 let lastTappedSkillCell = null;
 let skillCooldowns = {}; // { skillId: remainingSeconds }
+let usedSkillBlocks = []; // Array of {x, y, skillId} to track blocks used for skills
 
 // Update cooldowns every second
 setInterval(() => {
     if (isGameOver) return;
+    let notificationUpdateNeeded = false;
     for (let id in skillCooldowns) {
         if (skillCooldowns[id] > 0) {
             skillCooldowns[id]--;
+            // If the cooldown just finished, we need to update notifications
+            if (skillCooldowns[id] === 0) {
+                notificationUpdateNeeded = true;
+            }
             // If the ingame skill menu is open, it might need refreshing, 
             // but for now we refresh when it's opened.
-            // If the cooldown just finished, we might want to refresh the UI if it's visible.
             if (skillCooldowns[id] === 0 && !ingameSkillOverlay.classList.contains('hidden')) {
                 renderIngameSkills();
             }
         }
+    }
+    
+    // Update notifications if any cooldown finished
+    if (notificationUpdateNeeded) {
+        updateSkillAvailabilityNotifications();
     }
 }, 1000);
 
@@ -473,6 +485,7 @@ function initGame() {
     updateScoreUI();
     setTurnUI();
     usedSkillsInGame = [];
+    usedSkillBlocks = []; // Reset used skill blocks
     isAimingSkill = false;
     skillAimOverlay.classList.add('hidden');
     clearAimHighlight();
@@ -977,7 +990,10 @@ function updateScore() {
 
     for (let y = 0; y < GRID_SIZE; y++) {
         for (let x = 0; x < GRID_SIZE; x++) {
-            if (board[y][x] === RED_BLOCK) redBlockCells++;
+            // Check if this block is used by a skill
+            const isUsedBySkill = usedSkillBlocks.some(used => used.x === x && used.y === y);
+            
+            if (board[y][x] === RED_BLOCK && !isUsedBySkill) redBlockCells++;
             if (board[y][x] === BLUE_BLOCK) blueBlockCells++;
         }
     }
@@ -993,6 +1009,11 @@ function updateScore() {
     }
 
     updateScoreUI();
+    
+    // Update skill availability notifications when score changes
+    if (!isGameOver) {
+        updateSkillAvailabilityNotifications();
+    }
 }
 
 function updateScoreUI() {
@@ -1054,19 +1075,78 @@ function hasAnyValidMove(player) {
     return hasAnyValidMoveOnBoard(player, board);
 }
 
-function showToast(msg) {
-    elToast.innerText = msg;
+function showToast(message) {
+    elToast.innerText = message;
     elToast.classList.remove('hidden');
-
-    // reset animation
-    elToast.style.animation = 'none';
-    elToast.offsetHeight; // trigger reflow
-    elToast.style.animation = null;
-
-    clearTimeout(window.toastTimeout);
-    window.toastTimeout = setTimeout(() => {
+    setTimeout(() => {
         elToast.classList.add('hidden');
     }, 2000);
+}
+
+function showSkillActivationUI() {
+    elSkillActivationUI.classList.remove('hidden');
+    setTimeout(() => {
+        elSkillActivationUI.classList.add('hidden');
+    }, 1500);
+}
+
+function showAwakeningActivationUI() {
+    elAwakeningActivationUI.classList.remove('hidden');
+    setTimeout(() => {
+        elAwakeningActivationUI.classList.add('hidden');
+    }, 1500);
+}
+
+function updateSkillAvailabilityNotifications() {
+    // Calculate current RED basic blocks (excluding those used by skills)
+    let redBlockCells = 0;
+    for (let y = 0; y < GRID_SIZE; y++) {
+        for (let x = 0; x < GRID_SIZE; x++) {
+            const isUsedBySkill = usedSkillBlocks.some(used => used.x === x && used.y === y);
+            if (board[y][x] === RED_BLOCK && !isUsedBySkill) redBlockCells++;
+        }
+    }
+    let currentBlocks = Math.floor(redBlockCells / 4);
+
+    // Check each equipped skill
+    playerData.equippedSkills.forEach(skillId => {
+        if (!skillId) return;
+        
+        let sd = SKILL_DATA.find(s => s.id === skillId);
+        if (!sd) return;
+        
+        let reqBlocks = 2; // RARE
+        if (sd.rarity === 'srare') reqBlocks = 3;
+        else if (sd.rarity === 'urare') reqBlocks = 5;
+        else if (sd.rarity === 'prare') reqBlocks = 10;
+
+        const cdLeft = skillCooldowns[skillId] || 0;
+        const isAvailable = currentBlocks >= reqBlocks && cdLeft === 0;
+        
+        // Update skill button notification
+        updateSkillButtonNotification(skillId, isAvailable);
+    });
+}
+
+function updateSkillButtonNotification(skillId, isAvailable) {
+    // Find the skill card element in the ingame skills container
+    const skillCards = ingameCardsContainer.querySelectorAll('.skill-card');
+    skillCards.forEach(card => {
+        if (card.dataset.skillId === skillId) {
+            // Remove existing notification
+            const existingNotif = card.querySelector('.skill-available-notification');
+            if (existingNotif) {
+                existingNotif.remove();
+            }
+            
+            // Add notification if skill is available
+            if (isAvailable) {
+                const notification = document.createElement('div');
+                notification.className = 'skill-available-notification';
+                card.appendChild(notification);
+            }
+        }
+    });
 }
 
 // Turn Handling
@@ -1096,6 +1176,30 @@ async function handleCellClick(x, y) {
             
             // Only show success message if at least one piece was placed
             if (piecesPlaced > 0) {
+                // Show skill activation UI
+                showSkillActivationUI();
+                
+                // Mark blocks as used for this skill
+                let blocksConsumed = 0;
+                let reqBlocks = 2; // Default for rare
+                let sd = SKILL_DATA.find(s => s.id === activeSkillId);
+                if (sd) {
+                    if (sd.rarity === 'srare') reqBlocks = 3;
+                    else if (sd.rarity === 'urare') reqBlocks = 5;
+                    else if (sd.rarity === 'prare') reqBlocks = 10;
+                }
+                
+                // Find and mark unused RED_BLOCK cells as consumed
+                for (let by = 0; by < GRID_SIZE && blocksConsumed < reqBlocks; by++) {
+                    for (let bx = 0; bx < GRID_SIZE && blocksConsumed < reqBlocks; bx++) {
+                        const isUsedBySkill = usedSkillBlocks.some(used => used.x === bx && used.y === by);
+                        if (board[by][bx] === RED_BLOCK && !isUsedBySkill) {
+                            usedSkillBlocks.push({x: bx, y: by, skillId: activeSkillId});
+                            blocksConsumed++;
+                        }
+                    }
+                }
+                
                 showToast(`スキル発動! ${piecesPlaced}個配置`);
             } else {
                 showToast("スキルを配置できません");
@@ -1653,6 +1757,7 @@ function activateAwakening() {
     awakeningActive = true;
     btnSpecial.classList.add('active-awakening');
     btnSpecial.style.boxShadow = "0 0 20px #ffd32a";
+    showAwakeningActivationUI();
     showToast(`${ad.name} 発動！！`);
 
     // Cooldown duration based on rarity
@@ -2003,11 +2108,14 @@ function renderIngameSkills() {
         return;
     }
 
-    // Calculate current RED basic blocks
+    // Calculate current RED basic blocks (excluding those used by skills)
     let redBlockCells = 0;
     for (let y = 0; y < GRID_SIZE; y++) {
         for (let x = 0; x < GRID_SIZE; x++) {
-            if (board[y][x] === RED_BLOCK) redBlockCells++;
+            // Check if this block is used by a skill
+            const isUsedBySkill = usedSkillBlocks.some(used => used.x === x && used.y === y);
+            
+            if (board[y][x] === RED_BLOCK && !isUsedBySkill) redBlockCells++;
         }
     }
     let currentBlocks = Math.floor(redBlockCells / 4);
@@ -2022,6 +2130,7 @@ function renderIngameSkills() {
         else if (sd.rarity === 'prare') reqBlocks = 10;
 
         let el = generateSkillCardEl(sd);
+        el.dataset.skillId = sd.id; // Add skill ID for notification tracking
         
         // Add block requirement label
         let reqLabel = document.createElement('div');
@@ -2056,6 +2165,9 @@ function renderIngameSkills() {
         }
         ingameCardsContainer.appendChild(el);
     });
+    
+    // Update skill availability notifications
+    updateSkillAvailabilityNotifications();
 }
 
 // In-Game Menu & Settings Event Listeners
