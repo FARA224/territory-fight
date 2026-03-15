@@ -125,7 +125,7 @@ body {
 
 /* Lobby Overlay */
 #lobby {
-    backdrop-filter: blur(24px);
+    backdrop-filter: blur(40px);
     background-color: rgba(241, 242, 246, 0.6);
 }
 
@@ -317,9 +317,10 @@ body {
 
 #btn-start {
     margin-top: 2vh;
-    font-size: 1.8rem;
-    padding: 15px 60px;
+    font-size: clamp(1.4rem, 6vw, 1.8rem);
+    padding: 15px clamp(20px, 10vw, 60px);
     border-radius: 40px;
+    white-space: nowrap;
 }
 
 /* Buttons */
@@ -1509,15 +1510,17 @@ input:checked+.slider:before {
 }
 
 #start-sequence-text {
-    font-size: clamp(3rem, 15vw, 8rem);
+    font-size: clamp(2rem, 12vw, 8rem);
     font-weight: 900;
     color: #fff;
     text-shadow: 0 0 30px rgba(0,0,0,0.5);
     font-family: var(--font-main);
     text-transform: uppercase;
-    letter-spacing: 2vw;
+    letter-spacing: clamp(1vw, 2vw, 2vw);
     width: 100%;
     text-align: center;
+    padding: 0 10px;
+    box-sizing: border-box;
 }
 
 .start-pop-anim {
