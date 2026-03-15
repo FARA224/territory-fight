@@ -247,6 +247,22 @@ function loadPlayerData() {
         if(playerData.currentTitle === undefined) playerData.currentTitle = "おはじき初心者";
     }
 }
+// Audio Unlock for Mobile
+let isAudioUnlocked = false;
+function unlockAudio() {
+    if (isAudioUnlocked) return;
+    const audios = [seSet, seResult, seResultLast, seResultLoss, seButton, seStart, seCancel];
+    audios.forEach(a => {
+        if (a) {
+            a.play().then(() => {
+                a.pause();
+                a.currentTime = 0;
+            }).catch(() => {});
+        }
+    });
+    isAudioUnlocked = true;
+}
+
 function savePlayerData() {
     localStorage.setItem('territorySkills', JSON.stringify(playerData));
 }
@@ -351,6 +367,10 @@ setInterval(() => {
 
 // App State
 
+// Click listener to unlock audio
+document.addEventListener('click', unlockAudio, { once: true });
+document.addEventListener('touchstart', unlockAudio, { once: true });
+
 // Init trophies
 let storedTrophies = parseInt(localStorage.getItem('territoryTrophies') || '0');
 updateLobbyTopBar();
@@ -444,6 +464,9 @@ function initGame() {
 
     // Start Intro Sequence
     triggerStartSequence();
+    
+    // Attempt to hide address bar on some mobile browsers
+    window.scrollTo(0, 1);
 }
 
 async function triggerStartSequence() {

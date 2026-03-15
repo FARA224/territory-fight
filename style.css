@@ -40,6 +40,7 @@ body {
     font-family: var(--font-main);
     background-color: var(--bg-color);
     color: var(--text-color);
+    height: 100dvh;
     overflow: hidden;
     /* No scrolling for web app feel */
     transition: background-color 0.3s ease, color 0.3s ease;
@@ -71,7 +72,7 @@ body {
 #app {
     position: relative;
     width: 100vw;
-    height: 100vh;
+    height: 100dvh;
 }
 
 /* Base fade animations */
@@ -387,7 +388,7 @@ body {
 /* Game View */
 #game-view {
     width: 100vw;
-    height: 100vh;
+    height: 100dvh;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -1710,7 +1711,7 @@ input:checked+.slider:before {
     }
 
     #play-board-container {
-        width: min(100%, calc(100vh - 300px));
+        width: min(100%, calc(100dvh - 350px), 480px);
         outline-width: 4px;
     }
 
